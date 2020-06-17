@@ -25,6 +25,7 @@ type ArgParser struct {
 	opt_sudo         *string
 	opt_uniq         *bool
 	opt_test         *bool
+	opt_diff         *bool
 	opt_script_file  *string
 	opt_timeout      *uint32
 	opt_conntimeout  *uint32
@@ -45,12 +46,13 @@ func new_arg_parser() ArgParser {
 	return ArgParser{
 		opt:              opt,
 		opt_quiet:        opt.BoolLong("quiet", 'q', "keep quiet"),
-		opt_verbose:      opt.BoolLong("verbose", 'v', ""),
-		opt_group:        opt.BoolLong("group", 'g', "相同执行状态和输出结果的机器合为一组, 如果不需要显示机器地址信息, 可以在-g的基础上使用-q屏蔽"),
+		opt_verbose:      opt.BoolLong("verbose", 'v', "显示更多日志"),
+		opt_group:        opt.BoolLong("group", 'g', "相同执行状态和输出结果的机器合为一组, 使用-q屏蔽具体机器列表"),
 		opt_sudo:         opt.StringLong("user", 'u', "", "在目标机器以${user}运行指令", "[user]"),
 		opt_uniq:         opt.BoolLong("uniq", 'U', "检查任务(addr+sudo+cmd)不能重复"),
 		opt_test:         opt.BoolLong("test", 0, "", "将每台机器需要执行的指令显示(但不执行), 然后退出"),
-		opt_script_file:  opt.String('s', "", "指定本地shell脚本. 不能同时指定本地脚本和cmd. 脚本参数空格隔开", "[scriptfile]"),
+		opt_diff:         opt.Bool('d', "分组输出到文件. 调用diff工具查看差异. 默认为vimdiff. -q屏蔽具体机器列表"),
+		opt_script_file:  opt.String('s', "", "指定本地shell脚本. 脚本参数空格隔开", "[scriptfile]"),
 		opt_timeout:      opt.Uint32Long("timeout", 't', 0, "等待指令完成的超时时间(包括连接建立的时间). 默认0表示不超时", "[uint32]"),
 		opt_conntimeout:  opt.Uint32Long("conntimeout", 0, 3, "连接建立的超时时间. 默认3", "[uint32]"),
 		opt_parallel:     opt.Int('p', 100, "指定并发数. 默认. 如果指定为1, 则为串行有序执行", ""),
@@ -63,6 +65,9 @@ func new_arg_parser() ArgParser {
 }
 
 func (self *ArgParser) print_help() {
+	getopt.DisplayWidth = 140
+	getopt.HelpColumn = 30
+
 	fmt.Fprintf(os.Stderr, "批量ssh工具\n")
 	fmt.Fprintf(os.Stderr, "exitcode:\n")
 	fmt.Fprintf(os.Stderr, "    如果所有指令都执行成功(返回0), 则返回0\n")
@@ -274,6 +279,7 @@ func (self *ArgParser) ParseArgs(args []string) *DSSH {
 		opt_quiet:        *self.opt_quiet,
 		opt_verbose:      *self.opt_verbose,
 		opt_group:        *self.opt_group,
+		opt_diff:         *self.opt_diff,
 		opt_timeout:      *self.opt_timeout,
 		opt_conntimeout:  *self.opt_conntimeout,
 		opt_parallel:     *self.opt_parallel,

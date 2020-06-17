@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/dongleiw/dssh"
+	"io/ioutil"
 	"strings"
 	"time"
 )
@@ -10,8 +11,25 @@ import (
 type Output struct {
 	task       Task
 	status     string
+	succ       bool
 	output     string
 	finish_seq int
+}
+
+func (self Output) GetStatus(color bool) string {
+	if color {
+		if self.succ {
+			return green(self.status)
+		} else {
+			return red(self.status)
+		}
+	} else {
+		if self.succ {
+			return self.status
+		} else {
+			return self.status
+		}
+	}
 }
 
 // 连接失败 或者 有一个指令出结果了
@@ -25,10 +43,11 @@ func (self *DSSH) CmdFinished(task Task, ret *dssh.CmdResult, finish_seq int) bo
 	var output = &Output{
 		task:       task,
 		finish_seq: finish_seq,
+		status:     ret.GetStatus(),
+		succ:       ret.IsSuccess(),
 	}
 	if ret.IsSuccess() {
 		output.output = ret.Stdout
-		output.status = green(ret.GetStatus())
 	} else {
 		if len(ret.Stdout) > 0 {
 			output.output += ret.Stdout
@@ -39,12 +58,11 @@ func (self *DSSH) CmdFinished(task Task, ret *dssh.CmdResult, finish_seq int) bo
 		if ret.Err != nil {
 			output.output += fmt.Sprintf("%v\n", ret.Err)
 		}
-		output.status = red(ret.GetStatus())
 	}
 
 	self.map_task_output[task.UniqKey()] = output
 
-	if !self.opt_group {
+	if !self.opt_group && !self.opt_diff {
 		self.print_output(output)
 	}
 	return ret.IsSuccess()
@@ -59,11 +77,12 @@ func (self *DSSH) Interrupt(finish_seq int) {
 			var output = &Output{
 				task:       task,
 				finish_seq: finish_seq,
-				status:     red("interrupt"),
+				status:     "interrupt",
+				succ:       false,
 				output:     "",
 			}
 			self.map_task_output[task.UniqKey()] = output
-			if !self.opt_group {
+			if !self.opt_group && !self.opt_diff {
 				self.print_output(output)
 			}
 		}
@@ -76,27 +95,29 @@ func (self *DSSH) Finished() bool {
 		panic("bug")
 	}
 
-	// 按照状态和输出分组, 确保不同情况不会混淆在一起
-	var group = map[string][]*Output{}
+	var m = map[string][]*Output{}
 	for _, output := range self.map_task_output {
 		var key = output.status + output.output //
-		group[key] = append(group[key], output)
+		m[key] = append(m[key], output)
+	}
+	for _, group := range m {
+		self.output_groups = append(self.output_groups, group)
 	}
 
+	if self.opt_diff {
+		self.diff()
+	}
 	if self.opt_group {
-		for _, output_group := range group {
-			self.print_group_title(output_group)
-			print_newline(output_group[0].output)
-		}
+		self.group()
 	}
 	if self.opt_output_same {
-		if len(group) != 1 {
+		if len(self.output_groups) != 1 {
 			logerr("output-same-check fail")
 			return false
 		}
 	}
 	if len(self.opt_output_equal) > 0 {
-		if len(group) != 1 {
+		if len(self.output_groups) != 1 {
 			logerr("output-equal-check fail")
 			return false
 		}
@@ -123,15 +144,18 @@ func print_newline(s string) {
 	}
 }
 
-func (self *DSSH) print_group_title(output_group []*Output) {
-	var t = time.Now()
-	var curtime = fmt.Sprintf("%d:%d:%d", t.Hour(), t.Minute(), t.Second())
-	fmt.Printf("[%d/%d] [%s] [%s]\n", len(output_group), len(self.tasks), curtime, output_group[0].status)
+/*
+	拼接出一组状态和输出相同的机器信息
+*/
+func (self *DSSH) get_group_title(output_group []*Output, color bool) string {
+	var curtime = time.Now().Format("15:04:05")
+	var title = fmt.Sprintf("%d/%d %s %s\n", len(output_group), len(self.tasks), curtime, output_group[0].GetStatus(color))
 	if !self.opt_quiet {
 		for _, output := range output_group {
-			fmt.Printf("  -> %s\n", output.task.addr)
+			title += fmt.Sprintf("  -> %s\n", output.task.addr)
 		}
 	}
+	return title
 }
 
 // 打印一个指令的执行结果
@@ -139,7 +163,37 @@ func (self *DSSH) print_output(output *Output) {
 	if !self.opt_quiet {
 		var t = time.Now()
 		var curtime = fmt.Sprintf("%d:%d:%d", t.Hour(), t.Minute(), t.Second())
-		fmt.Printf("%d/%d %s %s %s\n", output.finish_seq, len(self.tasks), curtime, output.status, output.task.addr)
+		fmt.Printf("%d/%d %s %s %s\n", output.finish_seq, len(self.tasks), curtime, output.GetStatus(true), output.task.addr)
 	}
 	print_newline(output.output)
+}
+
+func (self *DSSH) diff() {
+	// 存储
+	var tmpdir = new_tmp_dir()
+	var idx = 1
+	var filelist []string
+	for _, output_group := range self.output_groups {
+		var filename = fmt.Sprintf("%v/%v", tmpdir, idx)
+		var title = self.get_group_title(output_group, false)
+		var content = fmt.Sprintf("%v\n-------------------------------------\n%v", title, output_group[0].output)
+		var err = ioutil.WriteFile(filename, []byte(content), 0664)
+		if err != nil {
+			logerr("failed to write to file[%v]", filename)
+			panic(err)
+		}
+		filelist = append(filelist, filename)
+		idx++
+	}
+	fmt.Println(strings.Join(filelist, " "))
+
+	// diff
+	calldiff(filelist)
+}
+
+func (self *DSSH) group() {
+	for _, output_group := range self.output_groups {
+		fmt.Printf(self.get_group_title(output_group, true))
+		print_newline(output_group[0].output)
+	}
 }

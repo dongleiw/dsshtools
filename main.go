@@ -17,6 +17,7 @@ type DSSH struct {
 	opt_quiet        bool
 	opt_verbose      bool
 	opt_group        bool
+	opt_diff         bool
 	opt_timeout      uint32
 	opt_conntimeout  uint32
 	opt_parallel     int
@@ -27,10 +28,10 @@ type DSSH struct {
 	tasks []Task
 
 	map_task_output map[string]*Output // task.key -> Output
+	output_groups   [][]*Output
 }
 
 func main() {
-
 	var err = dssh.Initialize(true)
 	if err != nil {
 		panic(err)

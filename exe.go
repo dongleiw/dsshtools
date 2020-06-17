@@ -37,7 +37,7 @@ func (self *DSSH) Execute() bool {
 	var running_num = 0  // 执行中的数量
 	var finish_num = 0   // 完成的数量
 	var finishchan = make(chan ResultPack)
-	var has_err = false
+	var succ = true
 
 	logdebug("begin to execute cmd")
 	// 最大并发<=指定最大并发数
@@ -54,7 +54,7 @@ func (self *DSSH) Execute() bool {
 			finish_num++
 			var task = self.tasks[rp.idx]
 			if !self.CmdFinished(task, rp.ret, finish_num) {
-				has_err = true
+				succ = false
 			}
 		case <-signalchan: // interrupt signal
 			self.Interrupt(finish_num)
@@ -69,7 +69,7 @@ func (self *DSSH) Execute() bool {
 	}
 
 	if !self.Finished() {
-		has_err = true
+		succ = false
 	}
-	return has_err
+	return succ
 }

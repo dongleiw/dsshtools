@@ -3,7 +3,8 @@
 类似pssh. 但是添加了一些常用的功能
 
 - 默认指定pipefail, errexit, nounset, 可以屏蔽
-- 可以按照结果分组
+- 可以按照结果分组显示
+- 可以调用diff工具查看多个输出之间的不同
 - 支持指定用户执行
 - 支持从stdin读取指令执行
 - 支持从stdin读入机器地址	
@@ -79,11 +80,17 @@ dssh -H A -H B -u root 'id && pwd'
 ```
 
 #### 执行本地脚本
-````
+```
 dssh -H A,B -s 'do_something.sh arg1 arg2'
-````
+```
+
+#### 查看sysctl.conf的区别
+```
+dssh -d -H A,B,C 'cat /etc/sysctl.conf'
+```
 
 ### 文档
 ```
 ./dssh # 无任何参数则打印help信息
 ```
+
