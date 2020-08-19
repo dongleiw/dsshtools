@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	//"strings"
 )
 
 func new_tmp_dir() string {
@@ -25,7 +26,7 @@ func new_tmp_dir() string {
 }
 func calldiff(filelist []string) {
 	var cmd = exec.Command("vimdiff", filelist...)
-	cmd.Stdin = os.Stdin
+	cmd.Stdin = os.Stderr
 	cmd.Stdout = os.Stdout
 	var err = cmd.Run()
 	if err != nil {
