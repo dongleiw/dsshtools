@@ -4,7 +4,7 @@
 
 - 默认指定pipefail, errexit, nounset, 可以屏蔽
 - 可以按照结果分组显示
-- 可以调用diff工具查看多个输出之间的不同
+- 可以调用vimdiff工具查看多个输出之间的不同
 - 支持指定用户执行
 - 支持从stdin读取指令执行
 - 支持从stdin读入机器地址	
@@ -43,7 +43,7 @@ CentOS release 6.5 (Final)
 CentOS release 6.5 (Final)
 ```
 
-#### 分组
+#### 分组 (相同输出的合并显示. 在一些场景下非常有用
 ```
 # 按照系统版本号将机器分组
 $ ./dssh -g -H A,B,C cat /etc/redhat-release
@@ -64,7 +64,7 @@ CentOS release 6.5 (Final)
 CentOS Linux release 7.2.1511 (Core) 
 ```
 
-#### 管道
+#### 管道 (可以从管道中读取iplist, 在串联多个步骤时非常有用
 ```
 # 管道传输机器列表
 cat iplist | dssh df
@@ -81,10 +81,10 @@ dssh -H A -H B -u root 'id && pwd'
 
 #### 执行本地脚本
 ```
-dssh -H A,B -s 'do_something.sh arg1 arg2'
+dssh -H A,B -s './do_something.sh arg1 arg2'
 ```
 
-#### 查看sysctl.conf的区别
+#### 查看sysctl.conf的区别  (有时候不仅要看多少种输出结果, 还需要对比输出的差异. 可以通过指定'-d'. 
 ```
 dssh -d -H A,B,C 'cat /etc/sysctl.conf'
 ```
