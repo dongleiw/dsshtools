@@ -55,7 +55,7 @@ func new_arg_parser() ArgParser {
 		opt_script_file:  opt.String('s', "", "指定本地shell脚本. 脚本参数空格隔开", "[scriptfile]"),
 		opt_timeout:      opt.Uint32Long("timeout", 't', 0, "等待指令完成的超时时间(包括连接建立的时间). 默认0表示不超时", "[uint32]"),
 		opt_conntimeout:  opt.Uint32Long("conntimeout", 0, 3, "连接建立的超时时间. 默认3", "[uint32]"),
-		opt_parallel:     opt.Int('p', 100, "指定并发数. 默认. 如果指定为1, 则为串行有序执行", ""),
+		opt_parallel:     opt.Int('p', 100, "指定并发数. 默认100. 如果指定为1, 则为串行有序执行", ""),
 		opt_noopt:        opt.Bool('n', "屏蔽默认添加的pipefail, errexit, nounset"),
 		opt_output_same:  opt.BoolLong("output-same", 0, "所有输出应该相同(且成功)"),
 		opt_output_equal: opt.StringLong("output-equal", 0, "", "所有输出应该等于value(且成功). 忽略前后空白字符", "[value]"),
@@ -78,10 +78,10 @@ func (self *ArgParser) print_help() {
 
 	fmt.Fprintf(os.Stderr, `
 例子:
-    dssh -h iplist-H 127.0.0.1,localhost -H 3.4.5.6 df   # 指定多个地址执行
-    cat iplist | dssh df                                 # stdin读取iplist执行
+    dssh -h iplist -H 127.0.0.1,localhost -H 3.4.5.6 df  # 指定多个地址执行
+    cat iplist | dssh df					             # stdin读取iplist执行
     echo df | dssh -h iplist                             # stdin读取指令执行
-    dssh -h iplist -s 'remote.sh 1 2 3'                  # 执行本地脚本
+    dssh -h iplist -s 'remote.sh arg1 arg2 arg3'         # 执行本地脚本
 `)
 }
 
